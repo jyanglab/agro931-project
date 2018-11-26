@@ -1,0 +1,84 @@
+---
+title: "Literature Stuy on foxtail millet"
+date: 11-25-2018
+author: "Jinliang Yang"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Normalize the path
+
+
+```{r setup, include=TRUE, warning=FALSE}
+knitr::opts_knit$set(root.dir=normalizePath('../../'))
+knitr::opts_knit$set(warnings = TRUE, include=TRUE, echo=TRUE)
+```
+
+# Search the key words
+
+Based on the [source](https://freshbiostats.wordpress.com/2013/12/03/analysis-of-pubmed-search-results-using-r/)
+
+```{r search}
+### source https://freshbiostats.wordpress.com/2013/12/03/analysis-of-pubmed-search-results-using-r/
+library(RCurl)
+library(RISmed)
+#query = "(exome OR whole OR deep OR high-throughput OR (next AND generation) OR (massively AND parallel)) AND sequencing"
+query = "(pearl millet) AND biomass"
+
+res <- EUtilsSummary(query, type="esearch", db = "pubmed", mindate=1980, maxdate=2018, retmax=30000)
+QueryCount(res)
+
+### get the pub records
+fm <- EUtilsGet(res)
+```
+
+### Pubs by Years
+```{r years}
+library(tidyverse)
+
+years <- YearPubmed(fm)
+fm_count <- as.data.frame(table(years))
+head(fm_count)
+```
+### Plot the pub by year results:
+```{r}
+theme_set(theme_grey(base_size = 18)) 
+s <- ggplot(fm_count, aes(x=years, y=Freq)) + 
+    #opts(axis.text.x=theme_text(angle=90)) +
+    geom_bar(stat="identity") +
+    labs(x="", y="# of pubs") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, size=12))
+s
+```
+
+
+## Top authors
+```{r}
+### Get authors
+auths <- Author(fm)
+Last <- sapply(auths, function(x) paste(x$LastName, x$ForeName))
+auths2 <- as.data.frame(sort(table(unlist(Last)), dec=TRUE))
+auths2$author <- row.names(auths2)
+names(auths2)[1] <- c("num")
+
+df <- as_tibble(auths2)
+head(df, 30)
+```
+
+## Top Affiliations
+
+```{r}
+### Get affiliations
+aff <- Affiliation(fm)
+#Last <- sapply(auths, function(x) paste(x$LastName, x$ForeName))
+aff2 <- as.data.frame(sort(table(unlist(aff)), dec=TRUE))
+aff2$id <- row.names(aff2)
+names(aff2)[1] <- c("number")
+
+df2 <- as_tibble(aff2)
+head(df2, 30)
+```
+
+
+
