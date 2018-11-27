@@ -5,6 +5,11 @@ date: 11-27-2018
 author: "Jinliang Yang"
 ---
 
+```{r setup, include=TRUE, warning=FALSE}
+knitr::opts_knit$set(root.dir=normalizePath('../../'))
+knitr::opts_knit$set(warnings = TRUE, include=TRUE, echo=TRUE)
+```
+
 # Simulate a QTL experiment
 
 ```{r}
@@ -25,7 +30,10 @@ plot.map(pop)
 
 
 ```{r}
+#pdf(file="../../graphs/sim_pheno.pdf", height=7, width=7)
+pdf(file="graphs/sim_pheno.pdf", height=7, width=7)
 hist(pop$pheno$phenotype, main="simulated phenotype", 
      breaks=50, xlab="Pheno", col="#cdb79e")
+dev.off()
 ```
 
