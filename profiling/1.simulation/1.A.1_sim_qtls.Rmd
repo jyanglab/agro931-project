@@ -1,0 +1,31 @@
+---
+title: "Simulate pearl millet PS QTLs"
+output: html_notebook
+date: 11-27-2018
+author: "Jinliang Yang"
+---
+
+# Simulate a QTL experiment
+
+```{r}
+library(qtl)
+set.seed(12347)
+# Fiveautosomes of length 50, 75, 100, 125, 60 cM
+L <- c(50, 75, 100, 125, 60)
+map <- sim.map(L, L/5+1, eq.spacing=FALSE, include.x=FALSE)
+# Simulate a backcross with two QTL
+a <- 0.7
+mymodel <- rbind(c(1, 40, a),
+                 c(4, 100, a))
+pop <- sim.cross(map, type="bc", n.ind=200, model=mymodel)
+plot.map(pop)
+```
+
+### Check phenotypic distribution
+
+
+```{r}
+hist(pop$pheno$phenotype, main="simulated phenotype", 
+     breaks=50, xlab="Pheno", col="#cdb79e")
+```
+
