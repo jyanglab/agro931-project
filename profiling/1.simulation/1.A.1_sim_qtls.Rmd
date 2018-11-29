@@ -24,6 +24,7 @@ mymodel <- rbind(c(1, 40, a),
                  c(4, 100, a))
 pop <- sim.cross(map, type="bc", n.ind=200, model=mymodel)
 plot.map(pop)
+save(pop, file="cache/simpop.RData")
 ```
 
 ### Check phenotypic distribution

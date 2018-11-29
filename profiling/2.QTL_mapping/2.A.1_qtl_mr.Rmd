@@ -1,0 +1,26 @@
+---
+title: "QTL mapping using mr method"
+output: html_notebook
+date: 11-29-2018
+author: "Jinliang Yang"
+---
+
+```{r setup, include=TRUE, warning=FALSE}
+knitr::opts_knit$set(root.dir=normalizePath('../../'))
+knitr::opts_knit$set(warnings = TRUE, include=TRUE, echo=TRUE)
+```
+
+
+### Load data and conduct QTL mapping
+
+```{r}
+load(file="cache/simpop.RData")
+library(qtl)
+
+# single-QTL scan by marker regression with the simulated data
+out.mr <- scanone(pop, method="mr")
+# plot of marker regression results for chr 4 and 12
+plot(out.mr, chr=c(1,2,3,4,5), ylab="LOD score")
+
+```
+
