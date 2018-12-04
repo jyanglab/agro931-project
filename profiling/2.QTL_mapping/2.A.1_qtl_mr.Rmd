@@ -1,8 +1,11 @@
 ---
 title: "QTL mapping using mr method"
-output: html_notebook
-date: 11-29-2018
 author: "Jinliang Yang"
+date: "11-29-2018"
+output:
+  word_document: default
+  pdf_document: default
+  html_notebook: default
 ---
 
 ```{r setup, include=TRUE, warning=FALSE}
