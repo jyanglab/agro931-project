@@ -1,0 +1,83 @@
+---
+title: "Lab2"
+output: html_notebook
+author: "Jinliang Yang"
+date: "10-16-2020"
+---
+
+
+# R functions
+
+```{r}
+x1 <- -16
+x2 <- abs(x1)
+
+sqrt(x2)
+?sqrt
+```
+
+```{r}
+a = 1; 
+d = 3/4*a
+p = 4/5; 
+q = 1 - p
+
+alpha <- a + d*(q - p)
+a1a1 <- 2*alpha*q
+a1a2 <- (q-p)*alpha
+a2a2 <- -2*p*alpha
+
+plot(c(0, 1, 2), c(-a, d, a), xlab="Genotype",ylab="", cex.lab=1.5, xaxt="n", pch=17, cex=2, col="red"); 
+axis(1, at=c(0, 1, 2), labels=c("A2A2", "A1A2", "A1A1")); 
+mtext("Genotypic Value", side = 2, line = 2, cex=1.5, col="red")
+
+mtext("Breeding Value", side = 4, line = 1, cex=1.5, col="blue"); 
+
+points(c(0, 1, 2), c(a2a2, a1a2, a1a1), cex=2, col="blue")
+lines(c(0, 1, 2), c(a2a2, a1a2, a1a1), lwd=2, col="blue")
+```
+
+# My first R function
+
+```{r}
+gfunction <- function(a=1, d=0, p=1/2){
+   # a: additive effect, numerical value [=1]
+   # d: dominance effect, numerical value [=0]
+   # p: allele frequency for the A1 allele numerical value [=1/2]
+   
+   q = 1-p
+   # allele sub effect
+   alpha <- a + d*(q-p)
+   a1a1 <- 2*alpha*q
+   a1a2 <- (q-p)*alpha
+   a2a2 <- -2*p*alpha
+   
+   # population mean
+   M <- a*(p-q) + 2*d*p*q
+   # return a data.frame with genotype values and breeding values
+   df <- data.frame(N1=c(0,1,2), gv=c(-a-M,d-M,a-M), bv=c(a2a2, a1a2, a1a1))
+   return(df)
+}
+```
+
+```{r}
+out <- gfunction(a=1, d=-1/2, p=1/2)
+#out
+out$dd <- out$gv - out$bv
+out
+```
+
+```{r}
+plot(out$N1, out$bv, xlab="Genotype",ylab="", cex.lab=1.5, xaxt="n", cex=2, col="blue", ylim=c(-1, 1.5)); 
+# add the axis and labels
+axis(1, at=c(0, 1, 2), labels=c("A2A2", "A1A2", "A1A1")); 
+# add y-axis title on the right side
+mtext("Breeding Value", side = 4, line = 1, cex=1.5, col="blue"); 
+# add y-axis title on the left side
+mtext("Genotypic Value", side = 2, line = 2, cex=1.5, col="red")
+# add breeding values
+points(out$N1, out$gv, cex=2, pch=17, col="red")
+# join the points by a line
+lines(out$N1, out$bv, lwd=2, col="blue")
+```
+
