@@ -1,0 +1,122 @@
+---
+title: "Lab3"
+output: html_notebook
+author: "Jinliang Yang"
+date: "10-23-2020"
+---
+
+# Variance function
+
+```{r}
+vfun <- function(a=1, dod=0, p=seq(0,1, by=0.01)){
+   # a: additive value, [num, =1]
+   # dod: degree of dominance, [num, =0]
+   # p: allele frequency of the A1 allele, [vector, =seq(0,1, by=0.01)]
+   
+   #a = 1
+   # dod = d/a => d = a*dod
+   d = dod*a #<< get the dominance value
+   q = 1- p
+   
+   # create a data.frame to return
+   df <- data.frame(p=p, 
+                    va=2*p*q*(a + d*(q-p))^2, 
+                    vd=(2*p*q*d)^2)
+   
+   df$vg <- df$va + df$vd
+   return(df)
+}
+```
+
+
+### Apply the `vfun` to different cases
+
+```{r}
+out <- vfun(a=1, dod=0, p=seq(0,1, by=0.01))
+
+plot(out$p, out$vg, lty=1, lwd=5, type="l", xlab="Allele Freq", ylab="Variance", main="a=1, dod=0")
+lines(out$p, out$va, lty=2, lwd=5, col="red")
+lines(out$p, out$vd, lty=3, lwd=5, col="blue")
+```
+
+## Complete dominance case
+
+```{r}
+out <- vfun(a=1, dod=1, p=seq(0,1, by=0.01))
+
+plot(out$p, out$vg, lty=1, lwd=5, type="l", xlab="Allele Freq", ylab="Variance", main="a=1, dod=1")
+lines(out$p, out$va, lty=2, lwd=5, col="red")
+lines(out$p, out$vd, lty=3, lwd=5, col="blue")
+```
+
+# Overdominance
+
+```{r}
+out <- vfun(a=0.01, dod=100, p=seq(0,1, by=0.01))
+
+plot(out$p, out$vg, lty=1, lwd=5, type="l", xlab="Allele Freq", ylab="Variance", main="a=.01, dod=100")
+lines(out$p, out$va, lty=2, lwd=5, col="red")
+lines(out$p, out$vd, lty=3, lwd=5, col="blue")
+```
+
+# Rice data
+
+First of all, let's read in the phenotypic data and take a quick look at the data table.
+
+The number of copies of the A1 allele:
+- A1A1 -> 2
+- A1A2 -> 1
+- A2A2 -> 0
+
+
+```{r}
+# phenotypes
+rice <- read.table("http://www.ricediversity.org/data/sets/44kgwas/RiceDiversity_44K_Phenotypes_34traits_PLINK.txt", header=TRUE, stringsAsFactors = FALSE, sep = "\t")
+
+rice <- rice[, 1:3]
+
+## add a fake genotype assuming the pop in HWE
+p = 0.2 # p is the allele freq of A1 allele
+q = 1-p
+
+set.seed(12378)
+rice$geno <- sample(c(2,1,0), size=nrow(rice), prob=c(p^2, 2*p*q, q^2), replace=TRUE)
+table(rice$geno)
+```
+
+
+
+
+```{r}
+A1A1 <- mean(subset(rice, geno == 2)$Flowering.time.at.Arkansas, na.rm=TRUE)
+A1A2 <- mean(subset(rice, geno == 1)$Flowering.time.at.Arkansas, na.rm=TRUE)
+A2A2 <- mean(subset(rice, geno == 0)$Flowering.time.at.Arkansas, na.rm=TRUE)
+
+### mid point
+m <- (A1A1 + A2A2)/2
+a <- A1A1 - m
+d <- A1A2 - m
+
+### Population mean
+M1 <- mean(rice$Flowering.time.at.Arkansas, na.rm=TRUE)
+
+### M = a*(p-q) + 2*d*p*q
+df <- as.data.frame(table(rice$geno))
+# allele freq for A1 (2 coding)
+p <- (2*df[df$Var1==2,]$Freq + df[df$Var1==1,]$Freq)/(2*sum(df$Freq))
+q <- 1-p
+M2 <- a*(p-q) + 2*d*p*q
+M2 <- M2 +m
+```
+
+
+
+
+
+
+
+
+
+
+
+
