@@ -1,0 +1,272 @@
+---
+title: "Lab3"
+output: html_notebook
+author: "Jinliang Yang"
+date: "11-18-2020"
+---
+
+```{r}
+rice <- read.table("http://www.ricediversity.org/data/sets/44kgwas/RiceDiversity_44K_Phenotypes_34traits_PLINK.txt", header=TRUE, stringsAsFactors = FALSE, sep = "\t")
+
+rice <- rice[, 1:3]
+set.seed(123579)
+for(i in 1:1000){
+   ## add a fake genotype assuming the pop in HWE
+   p = runif(n=1, min=0.05, max=0.5)
+   q = 1-p
+   rice$geno <- sample(c(0,1,2), size=nrow(rice), prob=c(p^2, 2*p*q, q^2), replace=TRUE)
+   names(rice)[ncol(rice)] <- paste0("m", i)
+}
+```
+
+
+```{r}
+# A function to calculate minor allele frequencies for all the markers
+maf <- function(rice){
+   df <- data.frame()
+   for(i in 4:ncol(rice)){
+      tb <- as.data.frame(table(rice[,i]))
+      a1 <- 2*tb$Freq[1] + tb$Freq[2]
+      frq <- data.frame(marker=names(rice)[i], maf=a1/(2*nrow(rice)))
+      if(frq$maf > 0.5){
+         frq$maf <- 1 - frq$maf
+      }
+      df <- rbind(df, frq)
+   }
+   return(df)
+}
+out <- maf(rice)
+
+hist(out$maf, breaks=30, col="blue", xlim=c(0, 0.5), main="MAF distribution", xlab="freq")
+```
+
+# simulated QTLs
+
+```{r}
+sim_qtl_pheno <- function(geno, h2, nqtl){
+#' @param geno genotype data, col1=genoid, col2 and after=snpid, coding: 0,1,2 (no missing data allowed) [data.frame].
+#' @param h2 Broad sense heritability of the trait [numeric(0-1)].
+#' @param nqtl number of QTL [interger].
+#' @param distribution [character=norm]
+#'
+#' @return return A list of many values.
+#'
+#' @examples
+#' geno <- read.table("data/geno.txt", header=TRUE)
+#' pheno <- sim_qtl_pheno(geno, h2=0.7, alpha=0.5, nqtl=10, distribution="norm")
+#' y <- pheno[['y']]
+    X <- geno[, -1]
+    n <- nrow(X)
+    m <- ncol(X)
+      
+    set.seed(1237)
+    #Sampling QTN
+    QTN.position <- sample(m, nqtl, replace=F)
+    SNPQ <- as.matrix(X[, QTN.position])
+
+    message(sprintf("### [simpheno], read in [ %s ] SNPs for [ %s ] plants and simulated [ %s ] QTLs",
+                    m, n, nqtl))
+
+    #Simulate phenotype
+    addeffect <- rnorm(nqtl,0,1)
+    
+    effect <- SNPQ%*%addeffect
+    effectvar <- var(effect)
+    residualvar <- (effectvar - h2*effectvar)/h2
+    residual <- rnorm(n, 0, sqrt(residualvar))
+    y <- effect + residual
+
+    return(data.frame(y=y, SNPQ=SNPQ))
+}
+```
+
+
+```{r}
+set.seed(1237)
+ph <- sim_qtl_pheno(geno=rice[, -2:-3], h2=0.9, nqtl=2)
+```
+
+
+```{r}
+# assuming the values deviated from 100 days
+ph$y <- ph$y+100
+rice$Flowering.time.at.Arkansas <- ph$y
+names(rice)[3] <- "ft"
+```
+
+# Plot the phenotype distribution
+
+```{r}
+# phenotypes
+hist(rice$ft, breaks=30, col="blue", 
+     main="Distribution of the flowering time values",
+     xlab="flowering time (days)")
+```
+
+------------------------------------------
+
+```{r}
+gfunction <- function(a=1, d=0, p=1/2){
+   # a: additive effect
+   # d: dominant effect
+   # p: allele frequency for the A1 allele
+   
+   q = 1-p
+   # allele sub effect
+   alpha <- a + d*(q-p)
+   a1a1 <- 2*alpha*q
+   a1a2 <- (q-p)*alpha
+   a2a2 <- -2*p*alpha
+   
+   # population mean
+   M <- a*(p-q) + 2*d*p*q
+   # return a data.frame with genotype values and breeding values
+   return(data.frame(N1=c(0,1,2), gv=c(-a-M,d-M,a-M), bv=c(a2a2, a1a2, a1a1)))
+}
+
+avgfun <- function(rice){
+   
+   outdf <- data.frame()
+   for(i in 4:ncol(rice)){
+      A1A1 <- mean(subset(rice, rice[,i] == 2)$ft, na.rm=TRUE)
+      A1A2 <- mean(subset(rice, rice[,i] == 1)$ft, na.rm=TRUE)
+      A2A2 <- mean(subset(rice, rice[,i] == 0)$ft, na.rm=TRUE)
+      
+      ### mid point
+      m <- (A1A1 + A2A2)/2
+      a <- A1A1 - m
+      d <- A1A2 - m
+      df <- as.data.frame(table(rice[,i]))
+      # allele freq for A1 (2 coding)
+      p <- (2*df[df$Var1==2,]$Freq + df[df$Var1==1,]$Freq)/(2*sum(df$Freq))
+
+      out <- gfunction(a=a, d=d, p=p)
+      avg <- (out$bv[1] - out$bv[3])/2
+      
+      tem <- data.frame(snp=names(rice)[i], eff=avg)
+      outdf <- rbind(outdf, tem)
+   }
+   return(outdf)
+}
+
+outdf <- avgfun(rice)
+
+plot(1:1000, abs(outdf$eff))
+```
+
+
+```{r}
+outdf$abseff <- abs(outdf$eff)
+outdf <- outdf[order(outdf$abseff, decreasing = TRUE),]
+head(outdf)
+```
+
+-------------------------------------
+
+```{r}
+vfun <- function(a=1, dod=0, p=seq(0,1, by=0.01)){
+   # a: additive value, [num, =1]
+   # dod: degree of dominance, [num, =0]
+   # p: allele frequency of the A1 allele, [vector, =seq(0,1, by=0.01)]
+   
+   #a = 1
+   d = dod*a #<< get the dominance value
+   q = 1- p
+
+   df <- data.frame(p=p, 
+                    va=2*p*q*(a + d*(q-p))^2, 
+                    vd=(2*p*q*d)^2)
+   df$vg <- df$va + df$vd
+   return(df)
+}
+
+h2fun <- function(rice){
+   
+   outdf <- data.frame()
+   for(i in 4:ncol(rice)){
+      A1A1 <- mean(subset(rice, rice[,i] == 2)$ft, na.rm=TRUE)
+      A1A2 <- mean(subset(rice, rice[,i] == 1)$ft, na.rm=TRUE)
+      A2A2 <- mean(subset(rice, rice[,i] == 0)$ft, na.rm=TRUE)
+      
+      ### mid point
+      m <- (A1A1 + A2A2)/2
+      a <- A1A1 - m
+      d <- A1A2 - m
+      df <- as.data.frame(table(rice[,i]))
+      # allele freq for A1 (2 coding)
+      p <- (2*df[df$Var1==2,]$Freq + df[df$Var1==1,]$Freq)/(2*sum(df$Freq))
+
+      out <- vfun(a=a, dod=d/a, p=p)
+      out$snp <- names(rice)[i]
+      
+      outdf <- rbind(outdf, out)
+   }
+   return(outdf)
+}
+
+outdf2 <- h2fun(rice)
+
+plot(1:1000, abs(outdf2$vg), ylab="Variance explained by markers")
+
+head(outdf2)
+```
+
+-------------------------------
+
+$V_G = \sum_i^n V_{m_i}$
+
+```{r}
+V <- subset(outdf2, snp %in% c("m329", "m983") )
+Vg <- sum(V$vg, na.rm=T)
+Vp <- var(rice$ft)
+Vg/Vp
+```
+
+```{r}
+Va <- sum(V$va, na.rm=T)
+Va/Vp
+```
+
+# Selection intensity
+
+```{r}
+# function for selection intensity
+ifun <- function(p=0.5){
+  x=qnorm(p=(1-p)) # get the truncation point
+  z=dnorm(x) # get z
+  return(z/p) # get i
+}
+p <- seq(0.0001, 1, by=0.0001)
+i <- ifun(p)
+plot(p, i)
+```
+
+```{r}
+# response to selection
+Rfun <- function(perc=0.05, h2, va){
+   i <- ifun(p=perc)
+   h <- sqrt(h2)
+   return(i*h*sqrt(va))
+}
+
+outR <- Rfun(perc=0.05, h2=0.98, va=2.327923)
+
+outR
+
+50/outR
+```
+
+
+-----------------
+
+```{r}
+df <- read.csv("https://jyanglab.com/AGRO-931/data/swine_sib.csv")
+head(df)
+
+mean(table(df$cross))
+
+fit <- lm(weight ~ sire + dam, data=df)
+summary(aov(fit))
+```
+
+
